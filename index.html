@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F1F0EE">
 <title>Sketch Prompts</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barrio&family=Palette+Mosaic&family=Ranchers&family=Rubik+Spray+Paint&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #F1F0EE;
@@ -57,8 +54,6 @@
   .num { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .7; min-height: 1.2em; }
   .prompt-wrap { flex: 1; display: flex; align-items: center; }
   .prompt { font-size: clamp(1.5rem, 6.4vw, 2.1rem); font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; margin: 0; overflow-wrap: anywhere; }
-  /* Display fonts are single-weight; they are applied inline per prompt once loaded, otherwise the bold sans fallback is used */
-  .prompt.display-font { font-weight: 400; letter-spacing: 0; line-height: 1.2; }
   .prompt.placeholder { font-size: clamp(1.15rem, 4.5vw, 1.4rem); font-weight: 600; opacity: .65; letter-spacing: 0; }
   .meta { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   .material-group { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
@@ -136,12 +131,6 @@
   .sheet-foot .ghost { width: 100%; }
   .sheet-foot .ghost.confirm { background: var(--orange); border-color: var(--orange); }
 
-  .credit { margin: 4px 0 0; text-align: center; font-size: .75rem; line-height: 1.4; color: var(--muted); }
-  .credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
-  .credit a:hover { color: var(--ink); }
-  .credit a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
-  .sheet-foot .credit { margin-top: 16px; }
-
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -171,7 +160,6 @@
     <button type="button" class="done-btn" id="doneBtn" disabled>Sketch done!</button>
     <button type="button" class="ghost" id="listBtn">Show all prompts</button>
   </div>
-  <p class="credit">Prompts from <a href="https://dogtwig2000.github.io/101prompts/" target="_blank" rel="noopener noreferrer">101 Prompts</a> by Sketchbook Skool</p>
 </div>
 
 <dialog id="dlg" aria-labelledby="dlgTitle">
@@ -188,7 +176,6 @@
       <ul class="list" id="list"></ul>
       <div class="sheet-foot">
         <button type="button" class="ghost" id="clearBtn">Clear all</button>
-        <p class="credit">Prompts from <a href="https://dogtwig2000.github.io/101prompts/" target="_blank" rel="noopener noreferrer">101 Prompts</a> by Sketchbook Skool</p>
       </div>
     </div>
   </div>
@@ -300,15 +287,6 @@
     "Draw the view from the toilet"
 ];
   var TOTAL = PROMPTS.length;
-
-  // Prompt typefaces, rotated each time a new prompt is pulled
-  var FONTS = ["Ranchers", "Rubik Spray Paint", "Palette Mosaic", "Barrio"];
-  var loadedFonts = [];
-  function pickFont() {
-    var pool = loadedFonts.filter(function (f) { return f !== state.font; });
-    if (!pool.length) pool = loadedFonts.slice();
-    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
-  }
   var KEY = "sketchPrompts.v2";
 
   // 60% "Anything goes"; the other 40% is split evenly across the other materials
@@ -328,14 +306,13 @@
     list: $("list"), count: $("count"), clearBtn: $("clearBtn")
   };
 
-  var state = { done: [], current: null, material: null, font: null };
+  var state = { done: [], current: null, material: null };
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem("sketchPrompts.v1") || "null");
     if (saved && Array.isArray(saved.done)) {
       state.done = saved.done.filter(function (n) { return Number.isInteger(n) && n >= 0 && n < TOTAL; });
       if (Number.isInteger(saved.current) && saved.current >= 0 && saved.current < TOTAL) state.current = saved.current;
       if (typeof saved.material === "string") state.material = saved.material;
-      if (FONTS.indexOf(saved.font) !== -1) state.font = saved.font;
     }
   } catch (e) {}
   if (state.current !== null && !state.material) state.material = ANYTHING;
@@ -368,9 +345,6 @@
       el.num.textContent = "Prompt " + (cur + 1) + " of " + TOTAL;
       el.prompt.textContent = PROMPTS[cur];
       el.prompt.classList.remove("placeholder");
-      var useFont = state.font && loadedFonts.indexOf(state.font) !== -1;
-      el.prompt.classList.toggle("display-font", !!useFont);
-      el.prompt.style.fontFamily = useFont ? '"' + state.font + '", ' + "var(--sans)" : "";
       el.material.textContent = state.material || ANYTHING;
       el.badge.hidden = !isDone;
       el.card.classList.toggle("has-tick", isDone);
@@ -378,14 +352,10 @@
       el.num.textContent = "";
       el.prompt.textContent = "All " + TOTAL + " prompts sketched. Nice work!";
       el.prompt.classList.add("placeholder");
-      el.prompt.classList.remove("display-font");
-      el.prompt.style.fontFamily = "";
     } else {
       el.num.textContent = "";
       el.prompt.textContent = "Press “Get prompt” to start";
       el.prompt.classList.add("placeholder");
-      el.prompt.classList.remove("display-font");
-      el.prompt.style.fontFamily = "";
     }
 
     el.doneBtn.disabled = !hasPrompt || isDone;
@@ -409,7 +379,6 @@
     } else {
       state.current = pool[Math.floor(Math.random() * pool.length)];
       state.material = rollMaterial();
-      state.font = pickFont();
     }
     save(); render();
   }
@@ -504,18 +473,6 @@
 
   buildList();
   render();
-
-  // Load the display fonts, then use whichever are available
-  if (document.fonts && document.fonts.load) {
-    Promise.all(FONTS.map(function (f) {
-      return document.fonts.load('1em "' + f + '"').then(function (r) {
-        if (r && r.length) loadedFonts.push(f);
-      }).catch(function () {});
-    })).then(function () {
-      if (state.current !== null && !state.font) { state.font = pickFont(); save(); }
-      render();
-    });
-  }
 })();
 </script>
 </body>
