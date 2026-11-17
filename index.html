@@ -5,19 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F1F0EE">
 <title>Sketch Prompts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barrio&family=Palette+Mosaic&family=Ranchers&family=Rubik+Spray+Paint&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #F1F0EE;
     --ink: #141414;
     --muted: #6b6a66;
-    --orange: #EF8444;
-    --orange-dark: #D96A28;
     --pink: #FDC2FE;
     --pink-dark: #F4A8F6;
     --green: #3F7A62;
     --green-dark: #2F634D;
     --blue: #A6C0F3;
     --beige: #D8D8C9;
+    --orange: #EF8444;
     --yellow: #E5E888;
     --white: #ffffff;
     --line: rgba(20,20,20,.12);
@@ -41,25 +43,29 @@
 
   .card {
     position: relative;
-    min-height: 220px;
+    --prompt-size: clamp(2.1rem, 9.5vw, 3.2rem); /* script may override with a px value so wide fonts still fit */
     display: flex; flex-direction: column; justify-content: space-between; gap: 16px;
     background: var(--blue);
     border-radius: 24px;
     padding: 20px;
     transition: background-color 1.2s ease, color 1.2s ease;
   }
-  /* quick fade to green, slow fade back */
   .card.is-done { background: var(--green); color: var(--white); transition-duration: .25s; }
   .card.is-empty { background: var(--beige); }
-  .num { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .7; min-height: 1.2em; }
-  .prompt-wrap { flex: 1; display: flex; align-items: center; }
-  .prompt { font-size: clamp(1.5rem, 6.4vw, 2.1rem); font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; margin: 0; overflow-wrap: anywhere; }
-  .prompt.placeholder { font-size: clamp(1.15rem, 4.5vw, 1.4rem); font-weight: 600; opacity: .65; letter-spacing: 0; }
+  .num { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .7; min-height: 1.2em; padding-right: 40px; }
+  /* reserve room for two lines of prompt text so the card never gets shorter than that */
+  .prompt-wrap { flex: 1; display: flex; align-items: center; min-height: calc(var(--prompt-size) * 2.4); }
+  .prompt { width: 100%; min-width: 0; font-size: var(--prompt-size); font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; margin: 0; overflow-wrap: normal; }
+  .prompt.break { overflow-wrap: anywhere; }
+  /* Display fonts are single-weight; applied inline per prompt once loaded, otherwise the bold sans fallback is used */
+  .prompt.display-font { font-weight: 400; letter-spacing: 0; line-height: 1.2; }
+  .prompt.placeholder { font-size: clamp(1.15rem, 4.5vw, 1.4rem); font-weight: 600; opacity: .65; letter-spacing: 0; overflow-wrap: anywhere; }
   .meta { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-  .material-group { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .meta[hidden] { display: none; }
+  .material-group { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .opt { font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .7; }
   .chip { display: inline-block; background: var(--yellow); color: var(--ink); font-weight: 700; font-size: .9rem; padding: 6px 12px; border-radius: 999px; }
+
   .tick {
     position: absolute; top: 16px; right: 16px;
     width: 32px; height: 32px; border-radius: 50%;
@@ -70,7 +76,6 @@
   .tick[hidden] { display: none; }
   .tick svg { width: 18px; height: 18px; stroke: var(--white); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; transition: stroke 1.2s ease; }
   .card.has-tick .tick { opacity: 1; transform: scale(1); }
-  /* during the green flash, invert the tick so it stays visible */
   .card.is-done .tick { background: var(--white); transition-duration: .25s; }
   .card.is-done .tick svg { stroke: var(--green); transition-duration: .25s; }
 
@@ -91,7 +96,6 @@
   .ghost:hover { background: var(--beige); }
   button:disabled { opacity: .4; cursor: not-allowed; }
 
-  /* Full-screen sheet: the .sheet element is the only scroll container */
   dialog {
     position: fixed; inset: 0;
     width: 100%; height: 100%; max-width: none; max-height: none;
@@ -131,6 +135,12 @@
   .sheet-foot .ghost { width: 100%; }
   .sheet-foot .ghost.confirm { background: var(--orange); border-color: var(--orange); }
 
+  .credit { margin: 4px 0 0; text-align: center; font-size: .75rem; line-height: 1.4; color: var(--muted); }
+  .credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .credit a:hover { color: var(--ink); }
+  .credit a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
+  .sheet-foot .credit { margin-top: 16px; }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -160,6 +170,7 @@
     <button type="button" class="done-btn" id="doneBtn" disabled>Sketch done!</button>
     <button type="button" class="ghost" id="listBtn">Show all prompts</button>
   </div>
+  <p class="credit">Prompts from <a href="https://dogtwig2000.github.io/101prompts/" target="_blank" rel="noopener noreferrer">101 Prompts</a> by Sketchbook Skool</p>
 </div>
 
 <dialog id="dlg" aria-labelledby="dlgTitle">
@@ -176,6 +187,7 @@
       <ul class="list" id="list"></ul>
       <div class="sheet-foot">
         <button type="button" class="ghost" id="clearBtn">Clear all</button>
+        <p class="credit">Prompts from <a href="https://dogtwig2000.github.io/101prompts/" target="_blank" rel="noopener noreferrer">101 Prompts</a> by Sketchbook Skool</p>
       </div>
     </div>
   </div>
@@ -287,6 +299,16 @@
     "Draw the view from the toilet"
 ];
   var TOTAL = PROMPTS.length;
+
+  // Prompt typefaces (Google Fonts), rotated at random each time a new prompt is pulled
+  var FONTS = ["Ranchers", "Rubik Spray Paint", "Palette Mosaic", "Barrio"];
+  var loadedFonts = [];
+  function pickFont() {
+    var pool = loadedFonts.filter(function (f) { return f !== state.font; });
+    if (!pool.length) pool = loadedFonts.slice();
+    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  }
+
   var KEY = "sketchPrompts.v2";
 
   // 60% "Anything goes"; the other 40% is split evenly across the other materials
@@ -306,26 +328,46 @@
     list: $("list"), count: $("count"), clearBtn: $("clearBtn")
   };
 
-  var state = { done: [], current: null, material: null };
+  var state = { done: [], current: null, material: null, font: null };
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem("sketchPrompts.v1") || "null");
     if (saved && Array.isArray(saved.done)) {
       state.done = saved.done.filter(function (n) { return Number.isInteger(n) && n >= 0 && n < TOTAL; });
       if (Number.isInteger(saved.current) && saved.current >= 0 && saved.current < TOTAL) state.current = saved.current;
       if (typeof saved.material === "string") state.material = saved.material;
+      if (FONTS.indexOf(saved.font) !== -1) state.font = saved.font;
     }
   } catch (e) {}
   if (state.current !== null && !state.material) state.material = ANYTHING;
   var doneSet = {};
+  state.done.forEach(function (n) { doneSet[n] = true; });
   var flashTimer = null;
   var flashing = false; // green "sketched" state, lasts 3 seconds, never persisted
-  state.done.forEach(function (n) { doneSet[n] = true; });
 
   function save() {
     state.done = Object.keys(doneSet).map(Number);
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
   }
   function doneCount() { return Object.keys(doneSet).length; }
+
+  // Wide display fonts can push a long word past the card edge. Shrink the text only as much as needed so
+  // every word fits on a line; the default (larger) size is kept whenever it fits.
+  function fitPrompt() {
+    el.card.style.removeProperty("--prompt-size");
+    el.prompt.classList.remove("break");
+    if (el.prompt.classList.contains("placeholder")) return;
+    var MIN = 22;
+    for (var i = 0; i < 4; i++) {
+      var over = el.prompt.scrollWidth - el.prompt.clientWidth;
+      if (over <= 1) return;
+      var size = parseFloat(getComputedStyle(el.prompt).fontSize);
+      var next = Math.max(MIN, Math.floor(size * (el.prompt.clientWidth / el.prompt.scrollWidth) * 0.98));
+      if (next >= size) break;
+      el.card.style.setProperty("--prompt-size", next + "px");
+      if (next === MIN) break;
+    }
+    if (el.prompt.scrollWidth - el.prompt.clientWidth > 1) el.prompt.classList.add("break");
+  }
 
   function render() {
     var n = doneCount();
@@ -345,6 +387,9 @@
       el.num.textContent = "Prompt " + (cur + 1) + " of " + TOTAL;
       el.prompt.textContent = PROMPTS[cur];
       el.prompt.classList.remove("placeholder");
+      var useFont = state.font && loadedFonts.indexOf(state.font) !== -1;
+      el.prompt.classList.toggle("display-font", !!useFont);
+      el.prompt.style.fontFamily = useFont ? '"' + state.font + '", var(--sans)' : "";
       el.material.textContent = state.material || ANYTHING;
       el.badge.hidden = !isDone;
       el.card.classList.toggle("has-tick", isDone);
@@ -352,11 +397,16 @@
       el.num.textContent = "";
       el.prompt.textContent = "All " + TOTAL + " prompts sketched. Nice work!";
       el.prompt.classList.add("placeholder");
+      el.prompt.classList.remove("display-font");
+      el.prompt.style.fontFamily = "";
     } else {
       el.num.textContent = "";
       el.prompt.textContent = "Press “Get prompt” to start";
       el.prompt.classList.add("placeholder");
+      el.prompt.classList.remove("display-font");
+      el.prompt.style.fontFamily = "";
     }
+    fitPrompt();
 
     el.doneBtn.disabled = !hasPrompt || isDone;
     el.getBtn.disabled = n === TOTAL;
@@ -379,6 +429,7 @@
     } else {
       state.current = pool[Math.floor(Math.random() * pool.length)];
       state.material = rollMaterial();
+      state.font = pickFont();
     }
     save(); render();
   }
@@ -470,9 +521,25 @@
   el.listBtn.addEventListener("click", openList);
   el.closeBtn.addEventListener("click", closeList);
   el.dlg.addEventListener("cancel", function () { document.documentElement.classList.remove("lock"); });
+  window.addEventListener("resize", fitPrompt);
 
   buildList();
   render();
+
+  // Start with a prompt already showing (keeps a saved one if there is one)
+  if (state.current === null && doneCount() < TOTAL) getPrompt();
+
+  // Load the display fonts, then use whichever are available
+  if (document.fonts && document.fonts.load) {
+    Promise.all(FONTS.map(function (f) {
+      return document.fonts.load('1em "' + f + '"').then(function (r) {
+        if (r && r.length) loadedFonts.push(f);
+      }).catch(function () {});
+    })).then(function () {
+      if (state.current !== null && (!state.font || loadedFonts.indexOf(state.font) === -1)) { state.font = pickFont(); save(); }
+      render();
+    });
+  }
 })();
 </script>
 </body>
