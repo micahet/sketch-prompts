@@ -149,17 +149,25 @@
   .credit a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
   .sheet-foot .credit { margin-top: 16px; }
 
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Number spinner shown while a prompt is being picked */
+  .card.spinning .prompt { font-size: calc(var(--prompt-size) * 1.7); line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  @keyframes land { 0% { transform: scale(.92); opacity: .3; } 100% { transform: none; opacity: 1; } }
+  .prompt.landed { animation: land .3s ease-out; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
 <div class="app">
+  <div class="sr-only" id="announce" aria-live="polite"></div>
   <header>
     <h1>Sketch Prompts</h1>
     <div class="progress" id="progress" aria-live="polite"></div>
   </header>
 
-  <main class="card is-empty" id="card" aria-live="polite" aria-atomic="true">
+  <main class="card is-empty" id="card">
     <div class="num" id="num"></div>
     <div class="prompt-wrap"><p class="prompt placeholder" id="prompt">Press “Get prompt” to start</p></div>
     <div class="meta" id="meta" hidden>
@@ -329,7 +337,7 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var el = {
-    card: $("card"), num: $("num"), prompt: $("prompt"), badge: $("badge"),
+    card: $("card"), announce: $("announce"), num: $("num"), prompt: $("prompt"), badge: $("badge"),
     meta: $("meta"), material: $("material"),
     progress: $("progress"), getBtn: $("getBtn"), doneBtn: $("doneBtn"),
     listBtn: $("listBtn"), dlg: $("dlg"), sheet: $("sheet"), closeBtn: $("closeBtn"),
@@ -350,6 +358,8 @@
   var doneSet = {};
   state.done.forEach(function (n) { doneSet[n] = true; });
   var flashTimer = null;
+  var spinTimer = null;
+  var spinning = false; // true while the number counter is running
   var flashing = false; // green "sketched" state, lasts 3 seconds, never persisted
 
   function save() {
@@ -380,6 +390,7 @@
   function render() {
     var n = doneCount();
     el.progress.textContent = n + " of " + TOTAL + " completed";
+    if (spinning) { el.getBtn.disabled = true; el.doneBtn.disabled = true; return; }
     var cur = state.current;
     var hasPrompt = cur !== null && n < TOTAL;
     var isDone = hasPrompt && !!doneSet[cur];
@@ -425,7 +436,68 @@
     flashing = false;
   }
 
-  function getPrompt() {
+  function reduceMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  // Commit the chosen prompt and reveal it
+  function land(target, material, font, animated) {
+    spinning = false;
+    clearTimeout(spinTimer);
+    el.card.classList.remove("spinning");
+    state.current = target;
+    state.material = material;
+    state.font = font;
+    save(); render(); renderList();
+    if (animated) {
+      el.prompt.classList.remove("landed");
+      void el.prompt.offsetWidth;
+      el.prompt.classList.add("landed");
+    }
+    el.announce.textContent = "Prompt " + (target + 1) + ": " + PROMPTS[target] + ". Draw with: " + material + ".";
+  }
+
+  // Cycle random numbers 1-101, slowing down, then land on the chosen prompt
+  function spin(target, material, font) {
+    spinning = true;
+    var STEPS = 18, GROW = 1.16, HOLD = 450;
+    var delay = 28, step = 0, last = -1;
+    var useFont = font && loadedFonts.indexOf(font) !== -1;
+
+    el.card.classList.remove("is-done", "has-tick", "is-empty");
+    el.card.classList.add("spinning");
+    el.badge.hidden = true;
+    el.meta.hidden = true;
+    el.num.textContent = "Picking a prompt\u2026";
+    el.prompt.classList.remove("placeholder", "landed", "break");
+    el.prompt.classList.toggle("display-font", !!useFont);
+    el.prompt.style.fontFamily = useFont ? '"' + font + '", var(--sans)' : "";
+    el.card.style.removeProperty("--prompt-size");
+    el.getBtn.disabled = true;
+    el.doneBtn.disabled = true;
+
+    function tick() {
+      var n;
+      if (step >= STEPS) {
+        n = target;
+      } else {
+        do { n = Math.floor(Math.random() * TOTAL); } while (n === last || n === target);
+      }
+      last = n;
+      el.prompt.textContent = String(n + 1);
+      if (step >= STEPS) {
+        spinTimer = setTimeout(function () { land(target, material, font, true); }, HOLD);
+        return;
+      }
+      step++;
+      spinTimer = setTimeout(tick, delay);
+      delay *= GROW;
+    }
+    tick();
+  }
+
+  function getPrompt(animate) {
+    if (spinning) return;
     stopFlash();
     var pool = [];
     for (var i = 0; i < TOTAL; i++) {
@@ -434,12 +506,14 @@
     if (!pool.length) {
       if (state.current !== null && !doneSet[state.current]) return;
       state.current = null;
-    } else {
-      state.current = pool[Math.floor(Math.random() * pool.length)];
-      state.material = rollMaterial();
-      state.font = pickFont();
+      save(); render();
+      return;
     }
-    save(); render();
+    var target = pool[Math.floor(Math.random() * pool.length)];
+    var material = rollMaterial();
+    var font = pickFont();
+    if (animate && !reduceMotion()) spin(target, material, font);
+    else land(target, material, font, false);
   }
 
   function markDone() {
@@ -524,7 +598,7 @@
     el.listBtn.focus();
   }
 
-  el.getBtn.addEventListener("click", getPrompt);
+  el.getBtn.addEventListener("click", function () { getPrompt(true); });
   el.doneBtn.addEventListener("click", markDone);
   el.listBtn.addEventListener("click", openList);
   el.closeBtn.addEventListener("click", closeList);
@@ -535,7 +609,7 @@
   render();
 
   // Start with a prompt already showing (keeps a saved one if there is one)
-  if (state.current === null && doneCount() < TOTAL) getPrompt();
+  if (state.current === null && doneCount() < TOTAL) getPrompt(false);
 
   // Load the display fonts, then use whichever are available
   if (document.fonts && document.fonts.load) {
